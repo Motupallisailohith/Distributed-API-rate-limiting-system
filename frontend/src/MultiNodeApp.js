@@ -11,7 +11,7 @@ import {
   Legend,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { simulateApiCall } from './demoData';
+// Removed demo data imports - using real Render backends only
 
 ChartJS.register(
   CategoryScale,
@@ -25,10 +25,29 @@ ChartJS.register(
 
 const API_BASE = process.env.REACT_APP_API_BASE || 'demo-mode';
 
+// Real Render.com backend URLs - no demo mode
 const NODES = [
-  { id: 1, name: 'Gateway A', url: API_BASE === 'demo-mode' ? 'demo-mode' : API_BASE, color: '#00ff88' },
-  { id: 2, name: 'Gateway B', url: API_BASE === 'demo-mode' ? 'demo-mode' : API_BASE.replace('8091', '8092'), color: '#ff6b6b' },
-  { id: 3, name: 'Gateway C', url: API_BASE === 'demo-mode' ? 'demo-mode' : API_BASE.replace('8091', '8093'), color: '#74b9ff' }
+  { 
+    id: 'node1', 
+    name: 'Gateway A (East Coast)', 
+    url: process.env.REACT_APP_NODE1_URL || 'https://gateway-a-east.onrender.com',
+    color: '#00ff88',
+    algorithm: 'tokenbucket'
+  },
+  { 
+    id: 'node2', 
+    name: 'Gateway B (West Coast)', 
+    url: process.env.REACT_APP_NODE2_URL || 'https://gateway-b-west.onrender.com',
+    color: '#74b9ff',
+    algorithm: 'leakybucket'
+  },
+  { 
+    id: 'node3', 
+    name: 'Gateway C (International)', 
+    url: process.env.REACT_APP_NODE3_URL || 'https://gateway-c-intl.onrender.com',
+    color: '#ff6b6b',
+    algorithm: 'slidingwindow'
+  }
 ];
 
 function MultiNodeApp() {
@@ -65,27 +84,35 @@ function MultiNodeApp() {
     setLogs(prev => [...prev.slice(-19), newLog]);
   };
 
-  const fetchAllNodes = async () => {
+    const fetchAllNodes = async () => {
     const nodeData = {};
     
     for (const node of NODES) {
       try {
-        let statusRes, metricsRes, algorithmRes;
-        
-        if (node.url === 'demo-mode') {
-          // Use demo data for all nodes
-          [statusRes, metricsRes, algorithmRes] = await Promise.all([
-            simulateApiCall('/api/status'),
-            simulateApiCall('/api/metrics'),
-            simulateApiCall('/api/algorithm')
-          ]);
-        } else {
-          [statusRes, metricsRes, algorithmRes] = await Promise.all([
-            axios.get(`${node.url}/api/status`),
-            axios.get(`${node.url}/api/metrics`), 
-            axios.get(`${node.url}/api/algorithm`)
-          ]);
-        }
+        // Always use real API calls to Render backends
+        const [statusRes, metricsRes, algorithmRes] = await Promise.all([
+          axios.get(`${node.url}/api/status`, {
+            timeout: 15000, // 15 second timeout for Render cold starts
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }),
+          axios.get(`${node.url}/api/metrics`, {
+            timeout: 15000,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          }),
+          axios.get(`${node.url}/api/algorithm`, {
+            timeout: 15000,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json'
+            }
+          })
+        ]);
         
         nodeData[node.id] = {
           ...node,
@@ -148,8 +175,8 @@ function MultiNodeApp() {
     }
 
     const node = nodes[nodeId];
-    if (!node?.online && node?.url !== 'demo-mode') {
-      addLog(`❌ Node ${nodeId} (${node?.name}) is offline`, 'error');
+    if (!node?.online) {
+      addLog(`❌ Node ${nodeId} (${node?.name}) is offline or unreachable`, 'error');
       return;
     }
 
@@ -160,22 +187,16 @@ function MultiNodeApp() {
     }, 1000);
 
     try {
-      addLog(`🧪 Testing ${node.name}...`, 'info');
-      let response;
+      addLog(`🧪 Testing ${node.name} (${node.url})...`, 'info');
       
-      if (node.url === 'demo-mode') {
-        // Use demo simulation
-        response = await simulateApiCall('/api/data', 'POST', {});
-        response.status = 200; // Ensure status is set for demo mode
-      } else {
-        // Real API call
-        response = await axios.post(`${node.url}/api/data`, {}, {
-          headers: {
-            'Authorization': `Bearer ${currentJWT}`,
-            'Content-Type': 'application/json'
-          }
-        });
-      }
+      // Always use real API call to Render backend
+      const response = await axios.post(`${node.url}/api/data`, {}, {
+        timeout: 15000, // 15 second timeout for Render cold starts
+        headers: {
+          'Authorization': `Bearer ${currentJWT}`,
+          'Content-Type': 'application/json'
+        }
+      });
       
       if (response.status === 200) {
         addLog(`✅ ${node.name} - Request ALLOWED - ${JSON.stringify(response.data)}`, 'success');
@@ -194,19 +215,19 @@ function MultiNodeApp() {
     
     const promises = NODES.map(async (node) => {
       try {
-        if (node.url === 'demo-mode') {
-          // Use demo simulation
-          await simulateApiCall('/api/algorithm', 'POST', { algorithm: algorithm });
-        } else {
-          // Real API call
-          await axios.post(`${node.url}/api/algorithm`, {
-            algorithm: algorithm
-          }, {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        }
+        // Always use real API call to Render backend
+        await axios.post(`${node.url}/api/algorithm`, {
+          algorithm: algorithm
+        }, {
+          timeout: 15000, // 15 second timeout for Render cold starts
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
         return { nodeId: node.id, success: true };
       } catch (error) {
+        console.error(`Failed to switch algorithm on ${node.name}:`, error.message);
         return { nodeId: node.id, success: false, error: error.message };
       }
     });
@@ -234,25 +255,26 @@ function MultiNodeApp() {
     const promises = [];
     for (let i = 0; i < 5; i++) {
       for (const node of NODES) {
-        if (nodes[node.id]?.online || node.url === 'demo-mode') {
-          if (node.url === 'demo-mode') {
-            // Use demo simulation
-            promises.push(
-              simulateApiCall('/api/data', 'POST', {})
-                .then(r => ({ ...r, status: 200 }))
-                .catch(e => ({ error: true, node: node.name, status: e.response?.status || 429 }))
-            );
-          } else {
-            // Real API call
-            promises.push(
-              axios.post(`${node.url}/api/data`, {}, {
-                headers: { 'Authorization': `Bearer ${currentJWT}` }
-              }).catch(e => ({ error: true, node: node.name, status: e.response?.status }))
-            );
-          }
+        if (nodes[node.id]?.online) {
+          // Always use real API call to Render backend
+          promises.push(
+            axios.post(`${node.url}/api/data`, {}, {
+              timeout: 15000, // 15 second timeout for Render cold starts
+              headers: { 
+                'Authorization': `Bearer ${currentJWT}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+              }
+            }).catch(e => ({ 
+              error: true, 
+              node: node.name, 
+              status: e.response?.status,
+              message: e.message 
+            }))
+          );
         }
       }
-      await new Promise(resolve => setTimeout(resolve, 200));
+      await new Promise(resolve => setTimeout(resolve, 500)); // Slightly longer delay for real API calls
     }
 
     const results = await Promise.all(promises);

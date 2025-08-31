@@ -47,6 +47,7 @@ public class HTTPServer {
         server.createContext("/api/data", new RateLimitHandler());
         server.createContext("/api/status", new StatusHandler());
         server.createContext("/api/metrics", new MetricsHandler());
+        server.createContext("/api/algorithm", new AlgorithmHandler());
         server.createContext("/", new WebInterfaceHandler());
         server.setExecutor(Executors.newFixedThreadPool(4));
     }
@@ -213,6 +214,43 @@ public class HTTPServer {
             "<p>Metrics: <code>GET /api/metrics</code></p>" +
             "<p><em>Frontend dashboard coming soon...</em></p>" +
             "</body></html>";
+        }
+    }
+
+    private class AlgorithmHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) {
+            try {
+                addCorsHeaders(exchange);
+                
+                if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                    exchange.sendResponseHeaders(200, -1);
+                    return;
+                }
+
+                if ("GET".equals(exchange.getRequestMethod())) {
+                    // Return current algorithm info
+                    String response = String.format(
+                        "{\"current\":\"%s\",\"available\":[\"tokenbucket\",\"leakybucket\",\"slidingwindow\"]}",
+                        limiter.getClass().getSimpleName().toLowerCase().replace("ratelimiter", "")
+                    );
+                    sendJsonResponse(exchange, 200, response);
+                } else if ("POST".equals(exchange.getRequestMethod())) {
+                    // Switch algorithm (for demo purposes, just return success)
+                    // In a real system, you'd implement algorithm switching logic
+                    String response = "{\"status\":\"success\",\"message\":\"Algorithm switch requested\"}";
+                    sendJsonResponse(exchange, 200, response);
+                } else {
+                    exchange.sendResponseHeaders(405, -1); // Method not allowed
+                }
+            } catch (Exception e) {
+                logger.severe("Error in AlgorithmHandler: " + e.getMessage());
+                try {
+                    sendJsonResponse(exchange, 500, "{\"status\":\"error\",\"message\":\"Internal server error\"}");
+                } catch (Exception ex) {
+                    logger.severe("Failed to send error response: " + ex.getMessage());
+                }
+            }
         }
     }
 
