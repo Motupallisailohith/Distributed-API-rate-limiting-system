@@ -27,12 +27,11 @@ COPY --from=build /app/config ./config
 
 # Create a startup script that accepts environment variables
 RUN echo '#!/bin/bash\n\
-java -Xmx256m -jar app.jar \
+java -Xmx256m -cp app.jar com.Motupallisailohith.ratelimit.SimpleMain \
   --algorithm=${ALGORITHM:-tokenbucket} \
   --http.port=${PORT:-8080} \
   --udp.port=${UDP_PORT:-7001} \
-  --config=${CONFIG_FILE:-config/demo-nodes.yml} \
-  --node.id=${NODE_ID:-node1}' > start.sh && chmod +x start.sh
+  --config=${CONFIG_FILE:-config/demo-nodes.yml}' > start.sh && chmod +x start.sh
 
 # Expose port
 EXPOSE $PORT

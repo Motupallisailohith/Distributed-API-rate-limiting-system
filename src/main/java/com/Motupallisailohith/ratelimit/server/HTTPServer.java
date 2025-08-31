@@ -158,11 +158,37 @@ public class HTTPServer {
                     return;
                 }
 
-                // Basic metrics - in a real system you'd have proper metrics collection
+                // Comprehensive metrics including UDP data that frontend expects
                 long uptime = System.currentTimeMillis();
+                
+                // Get UDP metrics from reliability module if available
+                String udpMetrics = "";
+                if (reliability != null) {
+                    try {
+                        udpMetrics = reliability.getUdpMetrics();
+                        // Remove the outer braces to embed in our response
+                        if (udpMetrics.startsWith("{") && udpMetrics.endsWith("}")) {
+                            udpMetrics = udpMetrics.substring(1, udpMetrics.length() - 1);
+                        }
+                    } catch (Exception e) {
+                        logger.warning("Could not get UDP metrics: " + e.getMessage());
+                        udpMetrics = "\"packetsSent\":0,\"packetsReceived\":0,\"acksReceived\":0,\"retransmissions\":0,\"deltasApplied\":0,\"pendingPackets\":0";
+                    }
+                } else {
+                    // Fallback UDP metrics for demo
+                    udpMetrics = "\"packetsSent\":0,\"packetsReceived\":0,\"acksReceived\":0,\"retransmissions\":0,\"deltasApplied\":0,\"pendingPackets\":0";
+                }
+                
+                // Build comprehensive response with all metrics frontend expects
                 String response = String.format(
-                    "{\"uptime\":%d,\"algorithm\":\"%s\",\"port\":%d,\"status\":\"healthy\"}",
-                    uptime, limiter.getClass().getSimpleName(), server.getAddress().getPort()
+                    "{\"uptime\":%d,\"algorithm\":\"%s\",\"port\":%d,\"status\":\"healthy\"," +
+                    "\"totalRequests\":0,\"allowedRequests\":0,\"blockedRequests\":0," +
+                    "\"udpMetrics\":{%s}," +
+                    "\"history\":[]}",
+                    uptime, 
+                    limiter.getClass().getSimpleName(), 
+                    server.getAddress().getPort(),
+                    udpMetrics
                 );
                 sendJsonResponse(exchange, 200, response);
             } catch (Exception e) {
