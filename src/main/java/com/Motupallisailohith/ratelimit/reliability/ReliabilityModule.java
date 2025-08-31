@@ -24,11 +24,18 @@ public class ReliabilityModule {
     private final ConcurrentMap<Integer, ConcurrentMap<Integer, Packet>> outgoingBuffers = new ConcurrentHashMap<>();
 
     // Now using the generic RateLimiter interface
-    private final RateLimiter limiter;
+    private volatile RateLimiter limiter;  // Made volatile for thread-safe switching
     private final DatagramSocket socket;
     private final InetAddress[] peers;
     private final int[] peerPorts;
     private final AtomicInteger seqGenerator = new AtomicInteger(0);
+
+    // UDP Metrics for frontend visibility
+    private final AtomicInteger packetsSent = new AtomicInteger(0);
+    private final AtomicInteger packetsReceived = new AtomicInteger(0);
+    private final AtomicInteger acksReceived = new AtomicInteger(0);
+    private final AtomicInteger retransmissions = new AtomicInteger(0);
+    private final AtomicInteger deltasApplied = new AtomicInteger(0);
 
     // Retransmission throttle parameters
     private final int throttleCapacity = 50;
@@ -62,6 +69,7 @@ public class ReliabilityModule {
 
     /** Handle an incoming UDP packet. */
     public void handleIncoming(Packet pkt, InetAddress sender, int port, DatagramSocket sock) {
+        packetsReceived.incrementAndGet(); // Track received packets
         try {
             switch (pkt.getType()) {
                 case DELTA_UPDATE:
@@ -81,6 +89,7 @@ public class ReliabilityModule {
     private void handleDelta(Packet pkt, InetAddress sender, int port) throws Exception {
         // Apply the remote delta to whichever algorithm is in use
         limiter.applyRemoteDelta(pkt.getBucketId(), pkt.getDelta());
+        deltasApplied.incrementAndGet(); // Track applied deltas
 
         // Debug: log remaining tokens if supported
        int remaining = limiter.getRemainingTokens(pkt.getBucketId());
@@ -105,6 +114,7 @@ public class ReliabilityModule {
     }
 
     private void handleAck(Packet pkt) {
+        acksReceived.incrementAndGet(); // Track received ACKs
         int seq = pkt.getSequence();
         for (Map.Entry<Integer, ConcurrentMap<Integer, Packet>> entry : outgoingBuffers.entrySet()) {
             if (entry.getValue().remove(seq) != null) {
@@ -147,6 +157,7 @@ public class ReliabilityModule {
             }
             try {
                 socket.send(new DatagramPacket(data, data.length, peers[i], peerPorts[i]));
+                packetsSent.incrementAndGet(); // Track sent packets
             } catch (Exception e) {
                 logger.log(Level.WARNING,
                            "Failed to send seq=" + pkt.getSequence() +
@@ -159,9 +170,30 @@ public class ReliabilityModule {
     private void retransmitPending() {
         for (ConcurrentMap<Integer, Packet> buf : outgoingBuffers.values()) {
             for (Packet pkt : buf.values()) {
+                retransmissions.incrementAndGet(); // Track retransmissions
                 sendToPeers(pkt);
             }
         }
+    }
+
+    /** Get UDP metrics for frontend visibility */
+    public String getUdpMetrics() {
+        int pendingPackets = 0;
+        for (ConcurrentMap<Integer, Packet> buf : outgoingBuffers.values()) {
+            pendingPackets += buf.size();
+        }
+        
+        return String.format(
+            "{\"packetsSent\":%d,\"packetsReceived\":%d,\"acksReceived\":%d,\"retransmissions\":%d,\"deltasApplied\":%d,\"pendingPackets\":%d,\"peerCount\":%d}",
+            packetsSent.get(), packetsReceived.get(), acksReceived.get(), 
+            retransmissions.get(), deltasApplied.get(), pendingPackets, peers.length
+        );
+    }
+
+    /** Update the rate limiter for dynamic algorithm switching */
+    public void updateRateLimiter(RateLimiter newLimiter) {
+        this.limiter = newLimiter;
+        logger.info("ReliabilityModule updated with new rate limiter: " + newLimiter.getClass().getSimpleName());
     }
 
     /** Clean up schedulers and socket. */

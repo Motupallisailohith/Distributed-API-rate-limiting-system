@@ -45,6 +45,9 @@ public class HTTPServer {
         this.jwtVerifier  = jwtVerifier;
 
         server.createContext("/api/data", new RateLimitHandler());
+        server.createContext("/api/status", new StatusHandler());
+        server.createContext("/api/metrics", new MetricsHandler());
+        server.createContext("/", new WebInterfaceHandler());
         server.setExecutor(Executors.newFixedThreadPool(4));
     }
 
@@ -57,10 +60,18 @@ public class HTTPServer {
         @Override
         public void handle(HttpExchange exchange) {
             try {
+                // Add CORS headers
+                addCorsHeaders(exchange);
+                
+                if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                    exchange.sendResponseHeaders(200, -1);
+                    return;
+                }
+
                 // 1) Verify JWT
                 String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
                 if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                    exchange.sendResponseHeaders(401, -1);
+                    sendJsonResponse(exchange, 401, "{\"status\":\"error\",\"message\":\"JWT token required\"}");
                     return;
                 }
                 String token = authHeader.substring(7);
@@ -69,41 +80,155 @@ public class HTTPServer {
                     JwtClaims claims = jwtVerifier.verify(token);
                     apiKey = claims.getSubject();
                 } catch (JwtException ex) {
-                    // invalid or expired JWT
-                    exchange.sendResponseHeaders(401, -1);
+                    sendJsonResponse(exchange, 401, "{\"status\":\"error\",\"message\":\"Invalid JWT token\"}");
                     return;
                 }
 
                 // 2) Rate-limit check
                 int bucketId = apiKey.hashCode();
                 boolean allowed = limiter.allow(bucketId, 1);
+                int remaining = limiter.getRemainingTokens(bucketId);
+                
                 logger.fine(String.format(
-                    "[HTTP] key=%s id=%d allowed=%s",
-                    apiKey, bucketId, allowed));
+                    "[HTTP] key=%s id=%d allowed=%s remaining=%d",
+                    apiKey, bucketId, allowed, remaining));
 
                 // 3) Broadcast delta & respond
-                String response;
-                int    status;
                 if (allowed) {
                     reliability.sendDelta(bucketId, 1);
-                    status   = 200;
-                    response = "OK";
+                    String response = String.format(
+                        "{\"status\":\"allowed\",\"algorithm\":\"%s\",\"remaining\":%d,\"apiKey\":\"%s\",\"timestamp\":%d}",
+                        limiter.getClass().getSimpleName(), remaining, apiKey, System.currentTimeMillis()
+                    );
+                    sendJsonResponse(exchange, 200, response);
                 } else {
-                    status   = 429;
-                    response = "Too Many Requests";
+                    String response = String.format(
+                        "{\"status\":\"blocked\",\"reason\":\"rate_limit_exceeded\",\"algorithm\":\"%s\",\"remaining\":%d,\"timestamp\":%d}",
+                        limiter.getClass().getSimpleName(), remaining, System.currentTimeMillis()
+                    );
+                    sendJsonResponse(exchange, 429, response);
+                }
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error handling HTTP request", e);
+                try { 
+                    sendJsonResponse(exchange, 500, "{\"status\":\"error\",\"message\":\"Internal server error\"}");
+                } catch (Exception ignored) {}
+            } finally {
+                exchange.close();
+            }
+        }
+    }
+
+    private class StatusHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) {
+            try {
+                addCorsHeaders(exchange);
+                
+                if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                    exchange.sendResponseHeaders(200, -1);
+                    return;
                 }
 
-                byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(status, bytes.length);
+                String response = String.format(
+                    "{\"algorithm\":\"%s\",\"status\":\"active\",\"port\":%d,\"timestamp\":%d}",
+                    limiter.getClass().getSimpleName(),
+                    server.getAddress().getPort(),
+                    System.currentTimeMillis()
+                );
+                sendJsonResponse(exchange, 200, response);
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error handling status request", e);
+                try { sendJsonResponse(exchange, 500, "{\"status\":\"error\"}"); } catch (Exception ignored) {}
+            } finally {
+                exchange.close();
+            }
+        }
+    }
+
+    private class MetricsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) {
+            try {
+                addCorsHeaders(exchange);
+                
+                if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                    exchange.sendResponseHeaders(200, -1);
+                    return;
+                }
+
+                // Basic metrics - in a real system you'd have proper metrics collection
+                long uptime = System.currentTimeMillis();
+                String response = String.format(
+                    "{\"uptime\":%d,\"algorithm\":\"%s\",\"port\":%d,\"status\":\"healthy\"}",
+                    uptime, limiter.getClass().getSimpleName(), server.getAddress().getPort()
+                );
+                sendJsonResponse(exchange, 200, response);
+            } catch (Exception e) {
+                logger.log(Level.SEVERE, "Error handling metrics request", e);
+                try { sendJsonResponse(exchange, 500, "{\"status\":\"error\"}"); } catch (Exception ignored) {}
+            } finally {
+                exchange.close();
+            }
+        }
+    }
+
+    private class WebInterfaceHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) {
+            try {
+                String path = exchange.getRequestURI().getPath();
+                
+                if (!"/".equals(path)) {
+                    exchange.sendResponseHeaders(404, -1);
+                    return;
+                }
+
+                String html = generateWebInterface();
+                byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+                
+                exchange.getResponseHeaders().add("Content-Type", "text/html");
+                exchange.sendResponseHeaders(200, bytes.length);
                 try (OutputStream os = exchange.getResponseBody()) {
                     os.write(bytes);
                 }
             } catch (Exception e) {
-                logger.log(Level.SEVERE, "Error handling HTTP request", e);
+                logger.log(Level.SEVERE, "Error serving web interface", e);
                 try { exchange.sendResponseHeaders(500, 0); } catch (Exception ignored) {}
             } finally {
                 exchange.close();
             }
+        }
+
+        private String generateWebInterface() {
+            int port = server.getAddress().getPort();
+            return "<!DOCTYPE html>" +
+            "<html><head><title>Distributed Rate Limiter</title></head>" +
+            "<body style='font-family:Arial,sans-serif;margin:40px;background:#f5f5f5;'>" +
+            "<h1>🔥 Distributed Rate Limiter Dashboard</h1>" +
+            "<p>Backend is running on port <strong>" + port + "</strong></p>" +
+            "<p>Algorithm: <strong>" + limiter.getClass().getSimpleName() + "</strong></p>" +
+            "<p>API Endpoint: <code>POST /api/data</code></p>" +
+            "<p>Status: <code>GET /api/status</code></p>" +
+            "<p>Metrics: <code>GET /api/metrics</code></p>" +
+            "<p><em>Frontend dashboard coming soon...</em></p>" +
+            "</body></html>";
+        }
+    }
+
+    // Helper methods
+    private void addCorsHeaders(HttpExchange exchange) {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    }
+
+    private void sendJsonResponse(HttpExchange exchange, int statusCode, String jsonResponse) throws Exception {
+        byte[] bytes = jsonResponse.getBytes(StandardCharsets.UTF_8);
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.sendResponseHeaders(statusCode, bytes.length);
+        try (OutputStream os = exchange.getResponseBody()) {
+            os.write(bytes);
         }
     }
 }

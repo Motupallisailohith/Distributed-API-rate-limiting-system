@@ -1,0 +1,14 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "java -Xmx256m -jar target/distributed-api-rate-limit-system-1.0-SNAPSHOT.jar --http.port=$PORT --algorithm=tokenbucket"
+
+[[services]]
+name = "gateway-a-east"
+
+[[services]]
+name = "gateway-b-west" 
+
+[[services]]
+name = "gateway-c-intl"

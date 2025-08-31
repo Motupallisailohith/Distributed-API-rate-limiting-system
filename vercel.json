@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "name": "distributed-rate-limiter",
+  "builds": [
+    {
+      "src": "frontend/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "https://your-backend-url.up.railway.app/api/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
+    }
+  ],
+  "functions": {
+    "frontend/src/**": {
+      "includeFiles": "frontend/build/**"
+    }
+  },
+  "github": {
+    "silent": true
+  }
+}

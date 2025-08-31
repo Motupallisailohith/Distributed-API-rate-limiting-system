@@ -21,11 +21,12 @@ public class Main {
     private static final Logger logger = Logger.getLogger(Main.class.getName());
 
     public static void main(String[] args) throws Exception {
-        // ─── Enable DEBUG logging ───
+        // ─── Configure logging for production ───
         Logger root = Logger.getLogger("");
-        root.setLevel(Level.FINE);
+        String logLevel = System.getenv().getOrDefault("LOG_LEVEL", "INFO");
+        root.setLevel(Level.parse(logLevel));
         for (Handler h : root.getHandlers()) {
-            h.setLevel(Level.FINE);
+            h.setLevel(Level.parse(logLevel));
         }
 
         // 1. Parse arguments
@@ -46,7 +47,8 @@ public class Main {
             rawLines = Files.readAllLines(Paths.get(configPath));
         } catch (Exception e) {
             logger.warning("Cannot read config at " + configPath + ", using localhost:" + udpPort);
-            rawLines = List.of("127.0.0.1:" + udpPort);
+            rawLines = new ArrayList<>();
+            rawLines.add("127.0.0.1:" + udpPort);
         }
         List<InetAddress> peerAddrs = new ArrayList<>();
         List<Integer>    peerPorts = new ArrayList<>();
