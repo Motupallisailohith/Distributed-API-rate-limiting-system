@@ -23,6 +23,7 @@ Experience real-time distributed rate limiting across multiple gateway nodes wit
 ---
 
 *   [Overview](#overview)
+*   [Architecture](#architecture)
 *   [Installation](#installation)
     *   [Prerequisites](#prerequisites)
     *   [Clone & Build](#clone--build)
@@ -68,6 +69,184 @@ Key features and concepts:
 
 - **Security & Observability**  
   OAuth2/JWT authentication, detailed consumption logging, and integrated OpenSSF Scorecard checks for CI-driven security best practices.
+
+## Architecture
+
+The system follows a decentralized peer-to-peer architecture where each gateway node operates independently while maintaining global rate limit consistency through UDP synchronization.
+
+```mermaid
+graph TB
+    subgraph "Client Layer"
+        C1[Client App]
+        C2[React Dashboard]
+        C3[API Consumer]
+    end
+    
+    subgraph "Node A - Gateway East"
+        subgraph "HTTP Layer A"
+            H1[HTTP Server :8080]
+            H1A["/api/data"]
+            H1B["/api/status"]
+            H1C["/api/metrics"]
+            H1D["/api/algorithm"]
+        end
+        
+        subgraph "Authentication A"
+            J1[JWT Verifier]
+            J1A[JWKS Validation]
+        end
+        
+        subgraph "Rate Limiting A"
+            R1[Rate Limiter Interface]
+            R1A[Token Bucket]
+            R1B[Leaky Bucket] 
+            R1C[Sliding Window]
+        end
+        
+        subgraph "UDP Layer A"
+            U1[UDP Listener :7000]
+            U1A[Reliability Module]
+            U1B[Packet Handler]
+            U1C[ACK/Retry Logic]
+        end
+    end
+    
+    subgraph "Node B - Gateway West"
+        subgraph "HTTP Layer B"
+            H2[HTTP Server :8081]
+            H2A["/api/data"]
+            H2B["/api/status"]
+            H2C["/api/metrics"]
+            H2D["/api/algorithm"]
+        end
+        
+        subgraph "Authentication B"
+            J2[JWT Verifier]
+            J2A[JWKS Validation]
+        end
+        
+        subgraph "Rate Limiting B"
+            R2[Rate Limiter Interface]
+            R2A[Token Bucket]
+            R2B[Leaky Bucket]
+            R2C[Sliding Window]
+        end
+        
+        subgraph "UDP Layer B"
+            U2[UDP Listener :7001]
+            U2A[Reliability Module]
+            U2B[Packet Handler]
+            U2C[ACK/Retry Logic]
+        end
+    end
+    
+    subgraph "Node C - Gateway International"
+        subgraph "HTTP Layer C"
+            H3[HTTP Server :8082]
+            H3A["/api/data"]
+            H3B["/api/status"]
+            H3C["/api/metrics"]
+            H3D["/api/algorithm"]
+        end
+        
+        subgraph "Authentication C"
+            J3[JWT Verifier]
+            J3A[JWKS Validation]
+        end
+        
+        subgraph "Rate Limiting C"
+            R3[Rate Limiter Interface]
+            R3A[Token Bucket]
+            R3B[Leaky Bucket]
+            R3C[Sliding Window]
+        end
+        
+        subgraph "UDP Layer C"
+            U3[UDP Listener :7002]
+            U3A[Reliability Module]
+            U3B[Packet Handler]
+            U3C[ACK/Retry Logic]
+        end
+    end
+    
+    subgraph "Infrastructure"
+        D1[Docker Compose]
+        D2[Container A]
+        D3[Container B]
+        D4[Container C]
+        CL[Render.com Cloud]
+    end
+    
+    subgraph "Configuration"
+        CF1[nodes.yml]
+        CF2[Environment Variables]
+        CF3[Algorithm Selection]
+    end
+    
+    %% Client connections
+    C1 -->|HTTP Requests| H1
+    C2 -->|HTTP Requests| H2
+    C3 -->|HTTP Requests| H3
+    
+    %% HTTP to Auth flow
+    H1 --> J1
+    H2 --> J2
+    H3 --> J3
+    
+    %% Auth to Rate Limiting
+    J1 --> R1
+    J2 --> R2
+    J3 --> R3
+    
+    %% Rate Limiting to UDP
+    R1 --> U1A
+    R2 --> U2A
+    R3 --> U3A
+    
+    %% UDP Peer-to-Peer Communication
+    U1A -.->|"Delta Updates<br/>22-byte packets"| U2A
+    U1A -.->|"Delta Updates<br/>22-byte packets"| U3A
+    U2A -.->|"Delta Updates<br/>22-byte packets"| U1A
+    U2A -.->|"Delta Updates<br/>22-byte packets"| U3A
+    U3A -.->|"Delta Updates<br/>22-byte packets"| U1A
+    U3A -.->|"Delta Updates<br/>22-byte packets"| U2A
+    
+    %% Infrastructure connections
+    D1 --> D2
+    D1 --> D3
+    D1 --> D4
+    D2 -.-> H1
+    D3 -.-> H2
+    D4 -.-> H3
+    CL -.-> D1
+    
+    %% Configuration
+    CF1 --> U1A
+    CF1 --> U2A
+    CF1 --> U3A
+    CF2 --> H1
+    CF2 --> H2
+    CF2 --> H3
+    CF3 --> R1
+    CF3 --> R2
+    CF3 --> R3
+```
+
+### Key Architecture Components:
+
+1. **HTTP Layer**: REST API endpoints with JWT authentication and CORS support
+2. **Rate Limiting Layer**: Pluggable algorithms (Token Bucket, Leaky Bucket, Sliding Window) with runtime switching
+3. **UDP Layer**: Custom reliable protocol with ACK/retry mechanism for peer synchronization
+4. **Infrastructure Layer**: Docker containerization with cloud deployment support
+
+### Request Flow:
+1. Client sends HTTP request to any gateway node
+2. JWT authentication validates the request
+3. Local rate limiter makes instant decision (sub-millisecond)
+4. If allowed, UDP delta is broadcast to all peer nodes
+5. Peers update their local counters maintaining global consistency
+
+This architecture eliminates single points of failure while achieving 10k+ req/s throughput with <200ms global convergence.
 
 ## Installation
 
