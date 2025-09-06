@@ -1,0 +1,55 @@
+# Render Blueprint for Distributed Rate Limiter
+services:
+  # Gateway A - East Coast (Token Bucket)
+  - type: web
+    name: gateway-a-east
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ALGORITHM
+        value: tokenbucket
+      - key: UDP_PORT
+        value: 7001
+      - key: NODE_ID
+        value: node1
+      - key: CONFIG_FILE
+        value: config/demo-nodes.yml
+    healthCheckPath: /api/status
+    
+  # Gateway B - West Coast (Leaky Bucket)  
+  - type: web
+    name: gateway-b-west
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ALGORITHM
+        value: leakybucket
+      - key: UDP_PORT
+        value: 7002
+      - key: NODE_ID
+        value: node2
+      - key: CONFIG_FILE
+        value: config/demo-nodes.yml
+    healthCheckPath: /api/status
+    
+  # Gateway C - International (Sliding Window)
+  - type: web
+    name: gateway-c-intl
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: ALGORITHM
+        value: slidingwindow
+      - key: UDP_PORT
+        value: 7003
+      - key: NODE_ID
+        value: node3
+      - key: CONFIG_FILE
+        value: config/demo-nodes.yml
+    healthCheckPath: /api/status
+
+
+

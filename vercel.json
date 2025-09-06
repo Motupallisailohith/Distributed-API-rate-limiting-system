@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "name": "distributed-rate-limiter",
+  "buildCommand": "cd frontend && npm run vercel-build",
+  "outputDirectory": "frontend/build",
+  "devCommand": "cd frontend && npm start",
+  "env": {
+    "REACT_APP_API_BASE": "https://gateway-a-east.onrender.com",
+    "REACT_APP_NODE1_URL": "https://gateway-a-east.onrender.com",
+    "REACT_APP_NODE2_URL": "https://gateway-b-west.onrender.com", 
+    "REACT_APP_NODE3_URL": "https://gateway-c-intl.onrender.com",
+    "REACT_APP_MODE": "production"
+  },
+  "github": {
+    "silent": true
+  }
+}
+
+
+
+
