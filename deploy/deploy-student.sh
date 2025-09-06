@@ -63,3 +63,6 @@ echo "1. Push code to GitHub"
 echo "2. Connect Vercel to GitHub repo"
 echo "3. Connect Railway to GitHub repo"
 echo "4. Enable automatic deployments"
+
+
+

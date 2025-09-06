@@ -50,3 +50,6 @@ services:
       - key: CONFIG_FILE
         value: config/demo-nodes.yml
     healthCheckPath: /api/status
+
+
+

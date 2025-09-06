@@ -210,3 +210,6 @@ Render provides built-in monitoring, logs, and health checks.
 - **Total**: ~45 minutes to live system
 
 Ready to deploy? Let's start with pushing your code to GitHub! 🚀
+
+
+

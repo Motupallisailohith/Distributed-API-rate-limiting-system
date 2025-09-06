@@ -141,9 +141,9 @@ function MultiNodeApp() {
       ...prev,
       labels: [...prev.labels.slice(-9), now],
       datasets: prev.datasets.map((dataset, index) => {
-        const nodeId = index + 1;
-        const node = nodeData[nodeId];
-        const packetsSent = node?.metrics?.udp?.packetsSent || 0;
+        const nodeConfig = NODES[index]; // Get node config
+        const node = nodeData[nodeConfig.id]; // Use correct node ID (node1, node2, node3)
+        const packetsSent = node?.metrics?.udpMetrics?.packetsSent || node?.metrics?.udp?.packetsSent || 0;
         
         return {
           ...dataset,
@@ -593,57 +593,6 @@ function MultiNodeApp() {
           </div>
         </div>
 
-        <div className="chart-section">
-          <div className="status-card">
-            <h3>📊 Real-Time Node Comparison</h3>
-            {Object.keys(nodes).length > 0 ? (
-              <Line 
-                data={{
-                  labels: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
-                  datasets: NODES.map(node => {
-                    const nodeData = nodes[node.id];
-                    return {
-                      label: `${node.name} (${node.algorithm})`,
-                      data: nodeData?.metrics?.history?.map(h => h.totalRequests) || Array(10).fill(0),
-                      borderColor: node.color,
-                      backgroundColor: `${node.color}20`,
-                      tension: 0.4,
-                    };
-                  })
-                }}
-                options={{
-                  responsive: true,
-                  plugins: {
-                    legend: {
-                      position: 'top',
-                    },
-                    title: {
-                      display: true,
-                      text: 'Request Rate Comparison Across Nodes'
-                    }
-                  },
-                  scales: {
-                    y: {
-                      beginAtZero: true,
-                      title: {
-                        display: true,
-                        text: 'Requests per Second'
-                      }
-                    },
-                    x: {
-                      title: {
-                        display: true,
-                        text: 'Time Points'
-                      }
-                    }
-                  }
-                }}
-              />
-            ) : (
-              <div className="no-data">No node data available for comparison</div>
-            )}
-          </div>
-        </div>
 
         {currentJWT && (
           <div className="jwt-display">

@@ -175,3 +175,6 @@ pkill -f java
 rm -rf logs/*
 rm -f *.pid
 ```
+
+
+

@@ -202,3 +202,6 @@ echo "🌐 Your endpoints will be:"
 echo "   http://snowball.cs.gsu.edu:8091/api/status"
 echo "   http://snowball.cs.gsu.edu:8092/api/status"
 echo "   http://snowball.cs.gsu.edu:8093/api/status"
+
+
+
