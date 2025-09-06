@@ -1,6 +1,27 @@
 # Distributed-API-rate-limiting-system
 Enforce rate limiting per API key across multiple gateway instances using a custom reliable UDP protocol.
 
+## 🚀 **Live Demo**
+**Try the system live:** [**Multi-Node Dashboard**](https://distributed-api-rate-limiter-b6e2rmofd.vercel.app/?mode=multi) 
+
+Experience real-time distributed rate limiting across multiple gateway nodes with live UDP coordination metrics!
+
+### 🎯 **Demo Features:**
+- **Real-time Multi-Node Monitoring** - Watch 3 distributed gateways coordinate via UDP
+- **Interactive Algorithm Switching** - Test Token Bucket, Leaky Bucket, and Sliding Window algorithms
+- **Live UDP Metrics** - See packets sent/received, ACKs, retransmissions, and peer coordination
+- **Stress Testing Tools** - Generate JWT tokens and test rate limiting in real-time
+- **Regional Load Distribution** - Simulate different geographic regions hitting different gateways
+
+### 🧪 **How to Use the Demo:**
+1. **Generate JWT Token** - Click "Generate JWT" to create authentication
+2. **Test Individual Gateways** - Try East Coast, West Coast, and International gateways
+3. **Switch Algorithms** - Compare different rate limiting strategies
+4. **Run Stress Tests** - Execute distributed load tests to see coordination in action
+5. **Monitor UDP Activity** - Watch real-time synchronization between nodes
+
+---
+
 *   [Overview](#overview)
 *   [Installation](#installation)
     *   [Prerequisites](#prerequisites)
