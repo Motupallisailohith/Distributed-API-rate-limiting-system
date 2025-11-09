@@ -34,3 +34,8 @@ logs/
 # Environment variables (if any are stored locally)
 .env
 *.env
+
+# Dependency graph images (DOT file is tracked)
+dependency-graph.png
+dependency-graph.svg
+dependency-graph.pdf
