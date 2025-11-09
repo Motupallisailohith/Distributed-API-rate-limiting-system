@@ -1,0 +1,114 @@
+digraph DependencyGraph {
+  rankdir=LR;
+  node [shape=box, style=filled, fontname="Arial"];
+  edge [color="#666666", arrowsize=0.8];
+
+  subgraph cluster_0 {
+    label="security";
+    style=filled;
+    color="#FFEBEE";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_security_JwtException [label="JwtException", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_security_JwtVerifier [label="JwtVerifier", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_1 {
+    label="protocol";
+    style=filled;
+    color="#FFF3E0";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_protocol_Packet [label="Packet", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_2 {
+    label="main";
+    style=filled;
+    color="#E8F5E9";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_Main [label="Main", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_3 {
+    label="tools";
+    style=filled;
+    color="#E0F2F1";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_tools_DependencyGraphGenerator [label="DependencyGraphGenerator", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_4 {
+    label="reliability";
+    style=filled;
+    color="#F3E5F5";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_reliability_ReliabilityModule [label="ReliabilityModule", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_5 {
+    label="server";
+    style=filled;
+    color="#FFF9C4";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_server_HTTPServer [label="HTTPServer", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_server_SimpleHTTPServer [label="SimpleHTTPServer", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_server_UDPListener [label="UDPListener", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_server_DemoHTTPServer [label="DemoHTTPServer", fillcolor="#B3E5FC", shape=box];
+  }
+
+  subgraph cluster_6 {
+    label="bucket";
+    style=filled;
+    color="#E3F2FD";
+    fontsize=12;
+    fontname="Arial Bold";
+
+    com_Motupallisailohith_ratelimit_bucket_TokenBucketRateLimiter [label="TokenBucketRateLimiter", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_bucket_LeakyBucketRateLimiter [label="LeakyBucketRateLimiter", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_bucket_SlidingWindowRateLimiter [label="SlidingWindowRateLimiter", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_bucket_TokenBucket [label="TokenBucket", fillcolor="#B3E5FC", shape=box];
+    com_Motupallisailohith_ratelimit_bucket_RateLimiter [label="RateLimiter", fillcolor="#C8E6C9", shape=diamond];
+  }
+
+  // Dependencies
+  com_Motupallisailohith_ratelimit_server_HTTPServer -> com_Motupallisailohith_ratelimit_security_JwtException;
+  com_Motupallisailohith_ratelimit_server_HTTPServer -> com_Motupallisailohith_ratelimit_reliability_ReliabilityModule;
+  com_Motupallisailohith_ratelimit_server_HTTPServer -> com_Motupallisailohith_ratelimit_bucket_RateLimiter;
+  com_Motupallisailohith_ratelimit_server_HTTPServer -> com_Motupallisailohith_ratelimit_security_JwtVerifier;
+  com_Motupallisailohith_ratelimit_server_SimpleHTTPServer -> com_Motupallisailohith_ratelimit_bucket_TokenBucketRateLimiter;
+  com_Motupallisailohith_ratelimit_server_SimpleHTTPServer -> com_Motupallisailohith_ratelimit_bucket_SlidingWindowRateLimiter;
+  com_Motupallisailohith_ratelimit_server_SimpleHTTPServer -> com_Motupallisailohith_ratelimit_reliability_ReliabilityModule;
+  com_Motupallisailohith_ratelimit_server_SimpleHTTPServer -> com_Motupallisailohith_ratelimit_bucket_RateLimiter;
+  com_Motupallisailohith_ratelimit_server_SimpleHTTPServer -> com_Motupallisailohith_ratelimit_bucket_LeakyBucketRateLimiter;
+  com_Motupallisailohith_ratelimit_server_UDPListener -> com_Motupallisailohith_ratelimit_reliability_ReliabilityModule;
+  com_Motupallisailohith_ratelimit_server_UDPListener -> com_Motupallisailohith_ratelimit_protocol_Packet;
+  com_Motupallisailohith_ratelimit_server_DemoHTTPServer -> com_Motupallisailohith_ratelimit_reliability_ReliabilityModule;
+  com_Motupallisailohith_ratelimit_server_DemoHTTPServer -> com_Motupallisailohith_ratelimit_bucket_RateLimiter;
+  com_Motupallisailohith_ratelimit_Main -> com_Motupallisailohith_ratelimit_server_UDPListener;
+  com_Motupallisailohith_ratelimit_Main -> com_Motupallisailohith_ratelimit_reliability_ReliabilityModule;
+  com_Motupallisailohith_ratelimit_reliability_ReliabilityModule -> com_Motupallisailohith_ratelimit_protocol_Packet;
+  com_Motupallisailohith_ratelimit_reliability_ReliabilityModule -> com_Motupallisailohith_ratelimit_bucket_RateLimiter;
+
+  // Legend
+  subgraph cluster_legend {
+    label="Legend";
+    style=filled;
+    color="#FFFFFF";
+    fontsize=10;
+    node [fontsize=10];
+    legend_class [label="Class", fillcolor="#B3E5FC", shape=box];
+    legend_interface [label="Interface", fillcolor="#C8E6C9", shape=diamond];
+    legend_enum [label="Enum", fillcolor="#FFE0B2", shape=ellipse];
+  }
+}

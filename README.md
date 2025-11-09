@@ -41,7 +41,8 @@ Experience real-time distributed rate limiting across multiple gateway nodes wit
     *   [Alternate between Node A (8080) and Node B (8081)](#alternate-between-node-a-8080-and-node-b-8081)
     *   [Test missing or invalid token](#test-missing-or-invalid-token)
 *   [Why This Approach?](#why-this-approach)
-*   [License?](#license)
+*   [Dependency Graph](#dependency-graph)
+*   [License](#license)
 
 ## Overview
 
@@ -400,6 +401,70 @@ We chose UDP-based peer-to-peer synchronization and a minimal ACK-and-retransmit
    Public API endpoints are protected by OAuth2/JWT, keeping token-consume logic separate from transport. Spin up a multi-node cluster in under 10 s with Docker Compose.
 
 Together, these choices deliver sub-millisecond decision latency, 10 k req/s per node, and fully distributed quotas—all without a central store or complex cluster coordination.  
+
+## Dependency Graph
+
+The codebase includes a dependency graph generator that creates a visual representation of all classes and their relationships. This helps understand the architecture and dependencies at a glance.
+
+### Generate the Dependency Graph
+
+**Linux/macOS:**
+```bash
+./generate-dependency-graph.sh
+```
+
+**Windows:**
+```batch
+generate-dependency-graph.bat
+```
+
+**Manual Generation:**
+```bash
+# Compile the project
+mvn compile
+
+# Generate the DOT file
+java -cp target/classes com.Motupallisailohith.ratelimit.tools.DependencyGraphGenerator . dependency-graph.dot
+```
+
+### Visualizing the Graph
+
+The generator creates a `dependency-graph.dot` file in DOT format. You can visualize it using:
+
+1. **Online Viewer (easiest):**
+   - Copy the content of `dependency-graph.dot`
+   - Visit [Graphviz Online](https://dreampuf.github.io/GraphvizOnline/)
+   - Paste the content and view the interactive graph
+
+2. **Command Line (requires Graphviz):**
+   ```bash
+   # Install Graphviz
+   # Ubuntu/Debian: sudo apt-get install graphviz
+   # macOS: brew install graphviz
+   # Windows: choco install graphviz
+   
+   # Generate images
+   dot -Tpng dependency-graph.dot -o dependency-graph.png
+   dot -Tsvg dependency-graph.dot -o dependency-graph.svg
+   dot -Tpdf dependency-graph.dot -o dependency-graph.pdf
+   ```
+
+### Graph Features
+
+The dependency graph shows:
+- **Classes** as blue boxes
+- **Interfaces** as green diamonds  
+- **Enums** as orange ellipses
+- **Dependencies** as arrows
+- **Packages** are color-coded and grouped:
+  - `main` (green) - Main entry point
+  - `bucket` (blue) - Rate limiting algorithms
+  - `protocol` (orange) - UDP protocol
+  - `reliability` (purple) - Reliability layer
+  - `security` (red) - JWT security
+  - `server` (yellow) - HTTP/UDP servers
+  - `tools` (teal) - Development tools
+
 ## License
 
 This project is released under the MIT License.  
